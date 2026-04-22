@@ -18,7 +18,7 @@
 
 Clonning repo ini ke VPS atau STB kalian di terminal dengan cara salin perintah di bawah ini:
 
-```git clone https://github.com/z1dan820/barber-app.git```
+```git clone https://github.com/z1dan820/barber-tracking.git```
 
 Selanjutnya setelah ter clone, berikan perintah ini:
 
@@ -36,7 +36,7 @@ Buka Terminal di STB kamu dan install PM2 dengan perintah di bawah ini:
 
 masuk ke folder app nya dan jalankan perintah ini:
 
-```pm2 start server.js --name "barber-app"```
+```pm2 start server.js --name "barber-tracking"```
 sekarang app telah berjalan di latar belakang STB
 
 kemudian ini bagian paling penting setup PM2 dengan perintah ini:
