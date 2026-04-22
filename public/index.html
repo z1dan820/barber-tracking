@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121826">
-    <link rel="apple-touch-icon" href="./icon-192.png">
     <style>
         body { font-family: 'Inter', sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -18,7 +17,7 @@
 </head>
 <body class="bg-gray-950 text-white min-h-screen flex justify-center items-center p-0 sm:p-4">
 
-    <div x-data="app()" x-init="fetchData()" class="w-full max-w-md h-[100vh] sm:h-[90vh] bg-gray-900 sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative border border-gray-800">
+    <div x-data="app()" class="w-full max-w-md h-[100vh] sm:h-[90vh] bg-gray-900 sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative border border-gray-800">
         
         <div class="px-6 pt-8 pb-4 bg-gray-900 z-10">
             <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">BarberLog</h1>
@@ -28,8 +27,9 @@
         <div class="flex-1 overflow-y-auto no-scrollbar pb-24 px-6 relative">
             
             <div class="flex p-1 bg-gray-800 rounded-xl mb-6 sticky top-0 z-20 backdrop-blur-md bg-opacity-80">
-                <button @click="tab = 'input'" :class="tab === 'input' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'" class="flex-1 py-2 text-sm font-medium rounded-lg transition-all">Input Harian</button>
-                <button @click="tab = 'dashboard'" :class="tab === 'dashboard' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'" class="flex-1 py-2 text-sm font-medium rounded-lg transition-all">Penghasilan</button>
+                <button @click="tab = 'input'" :class="tab === 'input' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'" class="flex-1 py-2 text-xs font-medium rounded-lg transition-all">Input</button>
+                <button @click="tab = 'dashboard'" :class="tab === 'dashboard' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'" class="flex-1 py-2 text-xs font-medium rounded-lg transition-all">Riwayat</button>
+                <button @click="tab = 'settings'" :class="tab === 'settings' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'" class="flex-1 py-2 text-xs font-medium rounded-lg transition-all">Pengaturan</button>
             </div>
 
             <div x-show="tab === 'input'" x-transition.opacity>
@@ -39,16 +39,22 @@
                 </div>
 
                 <div class="space-y-3">
-                    <template x-for="item in items" :key="item.key">
+                    <template x-if="services.length === 0">
+                        <p class="text-gray-500 text-sm text-center py-4">Belum ada paket. Buat di menu Pengaturan.</p>
+                    </template>
+                    <template x-for="srv in services" :key="srv.id">
                         <div class="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 flex justify-between items-center">
                             <div>
-                                <h3 class="font-bold text-sm" x-text="item.label"></h3>
-                                <p class="text-xs text-gray-400" x-text="formatRupiah(item.price)"></p>
+                                <h3 class="font-bold text-sm" x-text="srv.label"></h3>
+                                <p class="text-xs text-gray-400">
+                                    <span x-text="formatRupiah(srv.price)"></span> 
+                                    <span class="text-blue-400 ml-1" x-text="`(Bagi: ${srv.commission}%)`"></span>
+                                </p>
                             </div>
                             <div class="flex items-center space-x-3 bg-gray-900 rounded-lg p-1">
-                                <button @click="if(counts[item.key] > 0) counts[item.key]--" class="w-8 h-8 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 flex items-center justify-center">-</button>
-                                <span class="w-6 text-center font-mono font-bold" x-text="counts[item.key]"></span>
-                                <button @click="counts[item.key]++" class="w-8 h-8 rounded bg-blue-600 text-white hover:bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30">+</button>
+                                <button @click="if(counts[srv.id] > 0) counts[srv.id]--" class="w-8 h-8 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 flex items-center justify-center">-</button>
+                                <span class="w-6 text-center font-mono font-bold" x-text="counts[srv.id] || 0"></span>
+                                <button @click="counts[srv.id] = (counts[srv.id] || 0) + 1" class="w-8 h-8 rounded bg-blue-600 text-white hover:bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30">+</button>
                             </div>
                         </div>
                     </template>
@@ -56,7 +62,7 @@
                 <div class="h-24"></div> 
             </div>
 
-            <div x-show="tab === 'dashboard'" x-transition.opacity>
+            <div x-show="tab === 'dashboard'" x-transition.opacity style="display: none;">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-white">Bulan Ini</h2>
                     <input type="month" x-model="filterMonth" @change="filterData()" class="bg-gray-800 text-xs text-white px-3 py-1 rounded-lg border border-gray-700">
@@ -77,33 +83,69 @@
                         <div class="bg-gray-800/40 rounded-xl p-3 flex justify-between items-center border border-gray-800">
                             <div>
                                 <p class="text-xs text-gray-400" x-text="formatDate(rec.date)"></p>
-                                <p class="text-sm font-bold text-white mt-0.5">
-                                    <span x-show="rec.d > 0" x-text="`D:${rec.d} `"></span>
-                                    <span x-show="rec.r > 0" x-text="`R:${rec.r} `"></span>
-                                    <span x-show="rec.a > 0" x-text="`A:${rec.a} `"></span>
-                                    <span x-show="rec.p1 > 0" x-text="`P1:${rec.p1} `"></span>
-                                    <span x-show="rec.p2 > 0" x-text="`P2:${rec.p2} `"></span>
-                                    <span x-show="rec.p3 > 0" x-text="`P3:${rec.p3} `"></span>
-                                </p>
+                                <p class="text-sm font-bold text-white mt-0.5" x-text="rec.summary"></p>
                             </div>
                             <div class="text-right">
-                                <p class="text-sm font-bold text-blue-400" x-text="formatRupiah(calculateDailyIncome(rec))"></p>
+                                <p class="text-sm font-bold text-blue-400" x-text="formatRupiah(rec.income)"></p>
                             </div>
                         </div>
                     </template>
                 </div>
 
                 <div class="mt-8 border-t border-gray-800 pt-6">
-                    <button @click="clearData()" class="w-full py-3 rounded-xl border border-red-900/50 text-red-500 text-xs hover:bg-red-900/20 transition-colors">
-                        ⚠ Hapus Semua Data (Reset STB)
+                    <button @click="clearRecords()" class="w-full py-3 rounded-xl border border-red-900/50 text-red-500 text-xs hover:bg-red-900/20 transition-colors">
+                        ⚠ Hapus Riwayat Bulan Ini
                     </button>
                 </div>
                 <div class="h-24"></div> 
             </div>
+
+            <div x-show="tab === 'settings'" x-transition.opacity style="display: none;">
+                <h2 class="text-lg font-bold text-white mb-4">Pengaturan Harga & Paket</h2>
+                
+                <div class="space-y-4 mb-6">
+                    <template x-for="(srv, index) in services" :key="srv.id">
+                        <div class="bg-gray-800 border border-gray-700 p-4 rounded-xl relative">
+                            <button @click="removeService(index)" class="absolute top-2 right-2 text-red-400 hover:text-red-300 bg-red-400/10 p-1.5 rounded-lg text-xs font-bold">Hapus</button>
+                            
+                            <div class="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label class="text-[10px] text-gray-400 uppercase">Nama Paket</label>
+                                    <input type="text" x-model="srv.label" class="w-full bg-gray-900 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 mt-1">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-400 uppercase">Singkatan (Misal: D)</label>
+                                    <input type="text" x-model="srv.short" class="w-full bg-gray-900 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 mt-1">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-[10px] text-gray-400 uppercase">Harga (Rp)</label>
+                                    <input type="number" x-model.number="srv.price" class="w-full bg-gray-900 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 mt-1">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-400 uppercase">Bagihasil Capster (%)</label>
+                                    <input type="number" x-model.number="srv.commission" class="w-full bg-gray-900 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 mt-1">
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <button @click="addService()" class="w-full py-3 mb-4 rounded-xl border border-dashed border-gray-600 text-gray-400 text-sm hover:border-gray-400 hover:text-white transition-colors">
+                    + Tambah Paket Baru
+                </button>
+
+                <button @click="saveSettings()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all mb-12">
+                    Simpan Pengaturan
+                </button>
+                <div class="h-24"></div>
+            </div>
+
         </div>
 
         <div x-show="tab === 'input'" class="absolute bottom-6 left-0 right-0 px-6 z-30">
-            <button @click="saveData()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-600/40 transition-all active:scale-95 flex justify-center items-center gap-2">
+            <button @click="saveDailyRecord()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-600/40 transition-all active:scale-95 flex justify-center items-center gap-2">
                 <span>Simpan Hari Ini</span>
             </button>
         </div>
@@ -119,17 +161,80 @@
                 filteredRecords: [],
                 totalIncome: 0,
                 totalOmset: 0,
-                items: [
-                    { key: 'd', label: 'Dewasa', price: 40000 },
-                    { key: 'r', label: 'Remaja', price: 30000 },
-                    { key: 'a', label: 'Anak-Anak', price: 25000 },
-                    { key: 'p1', label: 'Paket 1', price: 50000 },
-                    { key: 'p2', label: 'Paket 2', price: 70000 },
-                    { key: 'p3', label: 'Paket 3', price: 90000 },
-                ],
-                counts: { d:0, r:0, a:0, p1:0, p2:0, p3:0 },
+                
+                // Variabel untuk dynamic settings
+                services: [],
+                counts: {},
 
-                async fetchData() {
+                // Konfigurasi Default (dipakai kalau database setting masih kosong)
+                defaultServices: [
+                    { id: 'id_1', label: 'Dewasa', short: 'D', price: 40000, commission: 50 },
+                    { id: 'id_2', label: 'Remaja', short: 'R', price: 30000, commission: 50 },
+                    { id: 'id_3', label: 'Anak', short: 'A', price: 25000, commission: 50 },
+                    { id: 'id_4', label: 'Paket 1', short: 'P1', price: 50000, commission: 55 }
+                ],
+
+                async init() {
+                    await this.fetchSettings();
+                    await this.fetchRecords();
+                },
+
+                // --- FUNGSI PENGATURAN (SETTINGS) ---
+                async fetchSettings() {
+                    try {
+                        const res = await fetch('/api/settings');
+                        const json = await res.json();
+                        
+                        if (json.data && json.data.length > 0) {
+                            this.services = json.data;
+                        } else {
+                            // Kalau kosong, tembak default ke database
+                            this.services = JSON.parse(JSON.stringify(this.defaultServices));
+                            await this.saveSettings(true); // true = silent save
+                        }
+                        this.resetCounts();
+                    } catch (e) { console.error("Gagal load settings:", e); }
+                },
+
+                addService() {
+                    this.services.push({
+                        id: 'id_' + Date.now(), // Generate ID unik
+                        label: 'Layanan Baru',
+                        short: 'NEW',
+                        price: 0,
+                        commission: 50
+                    });
+                },
+
+                removeService(index) {
+                    if(confirm('Hapus paket ini?')) {
+                        this.services.splice(index, 1);
+                    }
+                },
+
+                async saveSettings(silent = false) {
+                    try {
+                        await fetch('/api/settings', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ services: this.services })
+                        });
+                        this.resetCounts();
+                        if(!silent) alert("Pengaturan berhasil diperbarui!");
+                    } catch (e) {
+                        alert("Gagal menyimpan pengaturan.");
+                    }
+                },
+
+                // --- FUNGSI TRANSAKSI / INPUT ---
+                resetCounts() {
+                    this.counts = {};
+                    this.services.forEach(srv => {
+                        this.counts[srv.id] = 0;
+                    });
+                },
+
+                async fetchRecords() {
                     try {
                         const res = await fetch('/api/records');
                         const json = await res.json();
@@ -140,56 +245,60 @@
 
                 filterData() {
                     this.filteredRecords = this.records.filter(r => r.date.startsWith(this.filterMonth));
-                    this.calculateTotals();
+                    this.totalIncome = this.filteredRecords.reduce((acc, curr) => acc + curr.income, 0);
+                    this.totalOmset = this.filteredRecords.reduce((acc, curr) => acc + curr.omset, 0);
                 },
 
-                calculateDailyIncome(rec) {
-                    // 1. Reguler (D, R, A) -> 50%
-                    const incomeReg = ((rec.d * 40000) + (rec.r * 30000) + (rec.a * 25000)) * 0.50;
-                    
-                    // 2. Paket 1 -> 55%
-                    const incomeP1 = (rec.p1 * 50000) * 0.55;
-                    
-                    // 3. Paket 2 & 3 -> 60%
-                    const incomeP2P3 = ((rec.p2 * 70000) + (rec.p3 * 90000)) * 0.60;
+                async saveDailyRecord() {
+                    let totalItems = 0;
+                    let dailyOmset = 0;
+                    let dailyIncome = 0;
+                    let summaryArr = [];
 
-                    return incomeReg + incomeP1 + incomeP2P3;
-                },
+                    // Kalkulasi berdasarkan HARGA SAAT INI (Snapshot)
+                    this.services.forEach(srv => {
+                        const count = this.counts[srv.id] || 0;
+                        if (count > 0) {
+                            totalItems += count;
+                            const omset = count * srv.price;
+                            const income = omset * (srv.commission / 100);
+                            
+                            dailyOmset += omset;
+                            dailyIncome += income;
+                            summaryArr.push(`${srv.short}:${count}`);
+                        }
+                    });
 
-                calculateDailyOmset(rec) {
-                    return (rec.d * 40000) + (rec.r * 30000) + (rec.a * 25000) + 
-                           (rec.p1 * 50000) + (rec.p2 * 70000) + (rec.p3 * 90000);
-                },
+                    if (totalItems === 0) return alert("Pilih minimal 1 pangkas!");
 
-                calculateTotals() {
-                    this.totalIncome = this.filteredRecords.reduce((acc, curr) => acc + this.calculateDailyIncome(curr), 0);
-                    this.totalOmset = this.filteredRecords.reduce((acc, curr) => acc + this.calculateDailyOmset(curr), 0);
-                },
+                    const summaryText = summaryArr.join('  ');
 
-                async saveData() {
-                    const total = Object.values(this.counts).reduce((a, b) => a + b, 0);
-                    if (total === 0) return alert("Isi data terlebih dahulu!");
-                    
+                    // Kirim ke backend (kita simpan summary teks dan angka matangnya)
                     await fetch('/api/records', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ date: this.inputDate, ...this.counts })
+                        body: JSON.stringify({ 
+                            date: this.inputDate, 
+                            summary: summaryText, 
+                            income: dailyIncome, 
+                            omset: dailyOmset 
+                        })
                     });
 
-                    this.counts = { d:0, r:0, a:0, p1:0, p2:0, p3:0 };
-                    alert("Data disimpan!");
-                    await this.fetchData();
+                    this.resetCounts();
+                    alert("Data hari ini berhasil disimpan!");
+                    await this.fetchRecords();
                     this.tab = 'dashboard';
                 },
 
-                async clearData() {
-                    if(!confirm("Hapus semua data?")) return;
+                async clearRecords() {
+                    if(!confirm("Yakin ingin menghapus SEMUA riwayat transaksi? (Pengaturan paket tidak akan terhapus)")) return;
                     await fetch('/api/clear', { method: 'DELETE' });
-                    await this.fetchData();
+                    await this.fetchRecords();
                 },
 
                 formatRupiah(num) {
-                    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+                    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
                 },
                 
                 formatDate(dateStr) {
@@ -198,16 +307,12 @@
             }
         }
     
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      // Menggunakan './sw.js' karena berada di folder public yang sama
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('SW Registered!', reg))
-        .catch(err => console.log('SW Registration Failed!', err));
-    });
-  }
-
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .catch(err => console.log('SW Fail', err));
+            });
+        }
     </script>
 </body>
 </html>
-
