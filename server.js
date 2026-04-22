@@ -5,7 +5,7 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
-const PORT = 3001;
+const PORT = 3030;
 
 // Middleware
 app.use(bodyParser.json());
@@ -18,17 +18,25 @@ const db = new sqlite3.Database('./barber.db', (err) => {
     else console.log('Terhubung ke database SQLite.');
 });
 
-// Buat Tabel jika belum ada
-db.run(`CREATE TABLE IF NOT EXISTS records (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT,
-    d INTEGER, r INTEGER, a INTEGER,
-    p1 INTEGER, p2 INTEGER, p3 INTEGER
-)`);
+// Setup Tabel Database
+db.serialize(() => {
+    // Tabel riwayat transaksi (menyimpan snapshot data)
+    db.run(`CREATE TABLE IF NOT EXISTS records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT,
+        summary TEXT,
+        income INTEGER,
+        omset INTEGER
+    )`);
 
-// --- API ENDPOINTS ---
+    // Tabel untuk menyimpan pengaturan paket dinamis
+    db.run(`CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )`);
+});
 
-// 1. Ambil semua data (bisa difilter per bulan di frontend)
+// --- API RECORDS (TRANSAKSI) ---
 app.get('/api/records', (req, res) => {
     db.all("SELECT * FROM records ORDER BY date DESC", [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
@@ -36,23 +44,38 @@ app.get('/api/records', (req, res) => {
     });
 });
 
-// 2. Tambah Data Harian
 app.post('/api/records', (req, res) => {
-    const { date, d, r, a, p1, p2, p3 } = req.body;
-    const sql = `INSERT INTO records (date, d, r, a, p1, p2, p3) VALUES (?,?,?,?,?,?,?)`;
-    db.run(sql, [date, d, r, a, p1, p2, p3], function(err) {
+    const { date, summary, income, omset } = req.body;
+    db.run(`INSERT INTO records (date, summary, income, omset) VALUES (?, ?, ?, ?)`, 
+        [date, summary, income, omset], function(err) {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ id: this.lastID });
     });
 });
 
-// 3. Hapus Semua Data (Reset Database)
 app.delete('/api/clear', (req, res) => {
     db.run("DELETE FROM records", [], (err) => {
         if (err) return res.status(400).json({ error: err.message });
-        // Reset sequence ID
         db.run("DELETE FROM sqlite_sequence WHERE name='records'"); 
-        res.json({ message: "Database berhasil dibersihkan" });
+        res.json({ message: "Database transaksi dibersihkan" });
+    });
+});
+
+// --- API SETTINGS (PENGATURAN PAKET) ---
+app.get('/api/settings', (req, res) => {
+    db.get("SELECT value FROM settings WHERE key = 'services'", [], (err, row) => {
+        if (err) return res.status(400).json({ error: err.message });
+        res.json({ data: row ? JSON.parse(row.value) : null });
+    });
+});
+
+app.post('/api/settings', (req, res) => {
+    const { services } = req.body;
+    // Gunakan REPLACE INTO agar jika key sudah ada, dia akan menimpa (update)
+    db.run(`REPLACE INTO settings (key, value) VALUES ('services', ?)`, 
+        [JSON.stringify(services)], function(err) {
+        if (err) return res.status(400).json({ error: err.message });
+        res.json({ message: "Pengaturan berhasil disimpan" });
     });
 });
 
@@ -60,3 +83,4 @@ app.delete('/api/clear', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server berjalan di http://localhost:${PORT}`);
 });
+        
